@@ -1,99 +1,91 @@
 import pygame
-import random
-import torch
-
-C = 8.98755E9
-G = 6.67408E-11
-N = 1E-14
-N2 = 1E-14
-epsilon = 1E-9
-g = 0#9.8#grav*
-lam = -0.01#Friction*
-
-class cell_physics():
-
-    # vx=dx since we assume each step = 1 sec.
-    def __init__(self, charge, mass, pos=[0, 0], dx=0, dy=0):
-
-        self.dx = dx
-        self.dy = dy
-        self.charge = charge
-        self.mass = mass
-        self.pos = pos
-
-    def update(self, xmax, ymax, global_info):
-
-        d = global_info[0]
-        m2 = global_info[1]
-        q2 = global_info[2]
-        dX = d - torch.tensor((self.pos[0], self.pos[1])).unsqueeze(0).float()
-        R2 = torch.sum(dX**2, dim=1).unsqueeze(1) + epsilon
-        R4 = torch.sum(dX**4, dim=1).unsqueeze(1) + epsilon
-        F = ((G*self.mass*m2 - C*self.charge*q2)/R2) - (N*m2/(self.mass*R4)) + (N2*torch.where(q2 == self.charge, 1, 0) *
-                                                                 torch.where(m2 == self.mass, 1, 0)/R2)  # <- attracting like particles to each other using kronecker delta
-        #dr = torch.sum((F*dX/(R2**(1/2)))/self.mass, dim=0) + torch.tensor((lam*self.dx, lam*self.dy + g))
-        dr = torch.sum((F*dX/(R2**(1/2)))/(self.mass * (1/FPS**2)), dim=0) + torch.tensor((lam*self.dx, lam*self.dy + g))
-        self.dx += dr[0]
-        self.dy += dr[1]
-        if self.pos[0] > xmax or self.pos[0] < 10:
-            self.dx = -self.dx  # /1.01
-        if self.pos[1] > ymax or self.pos[1] < 10:
-            self.dy = -self.dy  # /1.01
-        self.pos[0] += self.dx
-        self.pos[1] += self.dy
-        return self.dx, self.dy
+from numpy import concatenate, nan_to_num, where, zeros, sum
+from numpy.random import randint
+from scipy.spatial.distance import cdist
+from numba import jit
     
-WIDTH, HEIGHT = 1600, 900
-DISH = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption('Evolve')
+SIG = 1E12
+EPS = 2E-6
+epsilon = 1E-9
+MASS = 4.65E-42
+FPS = 144
+SPF = 1/FPS
+RADIUS = 3
 
-WHITE = (255,255,255)
 BLACK = (0,0,0)
-DAY = (20,20,19)
-NIGHT = (10,11,15)
+WHITE = (255,255,255)
+WIDTH, HEIGHT = 600, 600
+DISH = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption('sim')
 
-FPS = 60
+EPSILON = 1E-20
 
-SCALE = (4,4)
+@jit(nopython=False)
+def Lennard_Jones_dynamics(ringo, color, RADIUS = 10, MASS = 1E-6, SPF = 1/144, WIDTH = 1600, HEIGHT = 900, SIG = 2E-4, EPS = 1E-15):
+    
+    v = ringo[:,2:]
+    x = ringo[:,:2]
+    
+    R = cdist(x, x, metric='euclidean')
+    R_ = zeros((x.shape[0],x.shape[0],x.shape[1]))
+    
+    for i in range(x.shape[0]):
+        
+        R_[i] = (x - x[i]) / (R[i].reshape(R.shape[0],1) + EPSILON)
 
-PARTICLE = pygame.image.load(r'R:/git projects/simulation-in-a-box/assets/remains.png')
-PARTICLE = pygame.transform.scale(PARTICLE, SCALE)
+    
+    a = sum(nan_to_num((48/MASS) * (EPS/SIG) * ((SIG/R) ** 13 - (((SIG/R) ** 7) * 0.5))).reshape(R.shape[0],R.shape[0],1) * R_,axis=1)
+    v = v + (a * SPF)
+    x = x + (v * SPF)
+    
+    #Boundry Condition
+    v = v * concatenate((where(x[:,0] > WIDTH - 1, -1, 1).reshape(x.shape[0],1),where(x[:,1] > HEIGHT - 1, -1, 1).reshape(x.shape[0],1)),1) * where(x < 1, -1, 1)
+    
+    #Outputs
+    ringo = concatenate((x,v), axis = 1)
+    arty = concatenate((x.astype('int32'),color), axis = 1)
+    
+    return arty, ringo
 
-K = 400
-K_list = range(K)
 
-def blitRotateCenter(surf, image, topleft, angle):
-    rotated_image = pygame.transform.rotate(image, angle)
-    new_rect = rotated_image.get_rect(center = image.get_rect(topleft = topleft).center)
-    surf.blit(rotated_image, new_rect.topleft)
-
-def draw_window(op,q2,m2):
-    DISH.fill(BLACK)    
-    d = torch.tensor([[op[i].pos[0], op[i].pos[1]] for i in K_list])
-    for i in K_list:
-        global_info = [torch.cat([d[:i],d[i:]]), torch.cat([m2[:i],m2[i:]]), torch.cat([q2[:i],q2[i:]])] if i < K-1 else [d[:i], m2[:i], q2[:i]]
-        op[i].update(WIDTH-10, HEIGHT-10, global_info)
-        DISH.blit(PARTICLE, (int(op[i].pos[0]),int(op[i].pos[1])))
+def draw_window(tensor,lighting):
+    DISH.fill(lighting)
+    for cell in tensor:
+        pygame.draw.circle(DISH, [cell[2], cell[3], cell[4]], (cell[0], cell[1]), RADIUS)
     pygame.display.update()
+
 
 def main():
     clock = pygame.time.Clock()
     run = True 
-    op = []
-    charge = [1E-15,-1E-9]
-    for i in K_list:
-        [op.append(cell_physics(charge[0], 9E-9, [random.randint(10, WIDTH-10), random.randint(10, HEIGHT-10)], random.randint(-10, 10)*10, random.randint(-10, 10)*10))]
-    q2 = [op[i].charge for i in range(K)]
-    q2 = torch.tensor((q2)).unsqueeze(1)
-    m2 = [op[i].mass for i in range(K)]
-    m2 = torch.tensor((m2)).unsqueeze(1)
+    
+    N = 500
+    
+    width = randint(0,WIDTH,(N, 1)).astype('float64')
+    height = randint(0,HEIGHT,(N, 1)).astype('float64')
+    vx = randint(-50,50,(N, 1)).astype('float64')*0.
+    vy = randint(-50,50,(N, 1)).astype('float64')*0.
+    ringo = concatenate((width, height, vx, vy), axis = 1)
+    color = randint(150,255, (N, 3))
+    
+    time_step = 0
+    
+    lighting = BLACK
+    
     while run:
         clock.tick(FPS)
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                run = False   
-        draw_window(op,q2,m2)              
+                run = False
+                
+        arty, ringo = Lennard_Jones_dynamics(ringo, color, RADIUS=RADIUS*1E-6, MASS=MASS, WIDTH=WIDTH, HEIGHT=HEIGHT, SPF = SPF)
+        draw_window(arty,lighting) 
+        time_step += 1
+        #print(ringo[0])
+        #print(arty[0])
     pygame.quit()
+
 
 if __name__ == '__main__':
     main()
