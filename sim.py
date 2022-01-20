@@ -4,17 +4,17 @@ from numpy.random import randint
 from scipy.spatial.distance import cdist
 from numba import jit
     
-SIG = 1E12
-EPS = 2E-6
+SIG = 1E-25
+EPS = 1E-4
 epsilon = 1E-9
-MASS = 4.65E-42
+MASS = 4.65E-40
 FPS = 144
 SPF = 1/FPS
 RADIUS = 3
 
 BLACK = (0,0,0)
 WHITE = (255,255,255)
-WIDTH, HEIGHT = 600, 600
+WIDTH, HEIGHT = 1600, 900
 DISH = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('sim')
 
@@ -23,7 +23,6 @@ EPSILON = 1E-20
 @jit(nopython=False)
 def Lennard_Jones_dynamics(ringo, color, RADIUS = 10, MASS = 1E-6, SPF = 1/144, WIDTH = 1600, HEIGHT = 900, SIG = 2E-4, EPS = 1E-15):
     
-    v = ringo[:,2:]
     x = ringo[:,:2]
     
     R = cdist(x, x, metric='euclidean')
@@ -34,8 +33,8 @@ def Lennard_Jones_dynamics(ringo, color, RADIUS = 10, MASS = 1E-6, SPF = 1/144, 
         R_[i] = (x - x[i]) / (R[i].reshape(R.shape[0],1) + EPSILON)
 
     
-    a = sum(nan_to_num((48/MASS) * (EPS/SIG) * ((SIG/R) ** 13 - (((SIG/R) ** 7) * 0.5))).reshape(R.shape[0],R.shape[0],1) * R_,axis=1)
-    v = v + (a * SPF)
+    a = sum(nan_to_num((48/MASS) * (EPS/SIG) * ((SIG/(R + EPSILON)) ** 13 - (((SIG/(R + EPSILON)) ** 7) * 0.5))).reshape(R.shape[0],R.shape[0],1) * R_,axis=1)
+    v = ringo[:,2:] + (a * SPF)
     x = x + (v * SPF)
     
     #Boundry Condition
@@ -59,12 +58,12 @@ def main():
     clock = pygame.time.Clock()
     run = True 
     
-    N = 500
+    N = 900
     
     width = randint(0,WIDTH,(N, 1)).astype('float64')
     height = randint(0,HEIGHT,(N, 1)).astype('float64')
-    vx = randint(-50,50,(N, 1)).astype('float64')*0.
-    vy = randint(-50,50,(N, 1)).astype('float64')*0.
+    vx = randint(-50,50,(N, 1)).astype('float64')*0.1
+    vy = randint(-50,50,(N, 1)).astype('float64')*0.1
     ringo = concatenate((width, height, vx, vy), axis = 1)
     color = randint(150,255, (N, 3))
     
