@@ -4,9 +4,8 @@ from numpy.random import randint
 from scipy.spatial.distance import cdist
 from numba import jit
     
-SIG = 1E-25
-EPS = 1E-4
-epsilon = 1E-9
+SIG = 1E-20
+EPS = 1E-3
 MASS = 4.65E-40
 FPS = 144
 SPF = 1/FPS
@@ -58,12 +57,12 @@ def main():
     clock = pygame.time.Clock()
     run = True 
     
-    N = 900
+    N = 300
     
     width = randint(0,WIDTH,(N, 1)).astype('float64')
     height = randint(0,HEIGHT,(N, 1)).astype('float64')
-    vx = randint(-50,50,(N, 1)).astype('float64')*0.1
-    vy = randint(-50,50,(N, 1)).astype('float64')*0.1
+    vx = randint(-50,50,(N, 1)).astype('float64')*0.
+    vy = randint(-50,50,(N, 1)).astype('float64')*0.
     ringo = concatenate((width, height, vx, vy), axis = 1)
     color = randint(150,255, (N, 3))
     
