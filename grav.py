@@ -11,7 +11,7 @@ RADIUS = 3
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
-WIDTH, HEIGHT = 5000, 5000
+WIDTH, HEIGHT = 900, 900
 DISH = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('sim')
 
@@ -19,12 +19,12 @@ EPSILON = 1E-20
 
 
 @jit(nopython=False)
-def newtonian_gravitational_dynamics(ringo, color, M, SPF=1/144, WIDTH=600, HEIGHT=600):
+def newtonian_gravitational_dynamics(ringo, color, counter, M, SPF=1/144, WIDTH=600, HEIGHT=600):
     x = ringo[:, :2]
     R = cdist(x, x, metric='euclidean')
     R_ = zeros((x.shape[0], x.shape[0], x.shape[1]))
     M_ = dot(M,M.T)
-    R_ = asarray([(x - x[i]) / (R[i].reshape(R.shape[0], 1) + EPSILON) for i in range(x.shape[0])])
+    R_ = asarray([(x - x[i]) / (R[i].reshape(R.shape[0], 1) + EPSILON) for i in counter])
     
     a = sum(nan_to_num((1/(M * ones((R.shape[0], R.shape[0])))) * G * (M_/((R ** 2) + EPSILON))).reshape(R.shape[0], R.shape[0], 1) * R_, axis=1)
     v = ringo[:, 2:] + (a * SPF)
@@ -52,11 +52,11 @@ def main():
     clock = pygame.time.Clock()
     run = True
     N = 5
-    M = ones((N, 1))*1E9
+    M = ones((N, 1))*1E7
     M[0] = M[0]*1E10
-    width = randint(0, WIDTH, (N, 1)).astype('float64')
+    width = randint(100, WIDTH-200, (N, 1)).astype('float64')
     width[0] = WIDTH/2
-    height = randint(0, HEIGHT, (N, 1)).astype('float64')
+    height = randint(100, HEIGHT-200, (N, 1)).astype('float64')
     height[0] = HEIGHT/2
     vx = randint(-50, 50, (N, 1)).astype('float64')*5.25
     vy = randint(-50, 50, (N, 1)).astype('float64')*5.25
@@ -66,13 +66,14 @@ def main():
     color = randint(150, 255, (N, 3))
     time_step = 0
     lighting = BLACK
+    counter = range(N)
 
     while run:
         clock.tick(FPS)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
-        arty, ringo = newtonian_gravitational_dynamics(ringo, color, M=M, WIDTH=WIDTH, HEIGHT=HEIGHT, SPF=SPF)
+        arty, ringo = newtonian_gravitational_dynamics(ringo, color, counter, M=M, WIDTH=WIDTH, HEIGHT=HEIGHT, SPF=SPF)
         draw_window(arty, lighting)
         time_step += 1
         # print(ringo[0])
