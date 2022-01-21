@@ -1,5 +1,5 @@
 import pygame
-from numpy import concatenate, nan_to_num, where, zeros, sum, dot, ones
+from numpy import concatenate, nan_to_num, where, zeros, sum, dot, ones, asarray
 from numpy.random import randint
 from scipy.spatial.distance import cdist
 from numba import jit
@@ -11,7 +11,7 @@ RADIUS = 3
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
-WIDTH, HEIGHT = 900, 900
+WIDTH, HEIGHT = 5000, 5000
 DISH = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('sim')
 
@@ -24,9 +24,7 @@ def newtonian_gravitational_dynamics(ringo, color, M, SPF=1/144, WIDTH=600, HEIG
     R = cdist(x, x, metric='euclidean')
     R_ = zeros((x.shape[0], x.shape[0], x.shape[1]))
     M_ = dot(M,M.T)
-
-    for i in range(x.shape[0]):
-        R_[i] = (x - x[i]) / (R[i].reshape(R.shape[0], 1) + EPSILON)
+    R_ = asarray([(x - x[i]) / (R[i].reshape(R.shape[0], 1) + EPSILON) for i in range(x.shape[0])])
     
     a = sum(nan_to_num((1/(M * ones((R.shape[0], R.shape[0])))) * G * (M_/((R ** 2) + EPSILON))).reshape(R.shape[0], R.shape[0], 1) * R_, axis=1)
     v = ringo[:, 2:] + (a * SPF)
@@ -53,15 +51,15 @@ def draw_window(tensor, lighting):
 def main():
     clock = pygame.time.Clock()
     run = True
-    N = 9
+    N = 5
     M = ones((N, 1))*1E9
-    M[0] = M[0]*1E6
+    M[0] = M[0]*1E10
     width = randint(0, WIDTH, (N, 1)).astype('float64')
     width[0] = WIDTH/2
     height = randint(0, HEIGHT, (N, 1)).astype('float64')
     height[0] = HEIGHT/2
-    vx = randint(-50, 50, (N, 1)).astype('float64')*0.4
-    vy = randint(-50, 50, (N, 1)).astype('float64')*0.4
+    vx = randint(-50, 50, (N, 1)).astype('float64')*5.25
+    vy = randint(-50, 50, (N, 1)).astype('float64')*5.25
     vx[0] = 0.
     vy[0] = 0.
     ringo = concatenate((width, height, vx, vy), axis=1)

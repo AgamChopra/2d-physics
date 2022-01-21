@@ -1,12 +1,12 @@
 import pygame
-from numpy import concatenate, nan_to_num, where, zeros, sum
+from numpy import concatenate, nan_to_num, where, sum, asarray
 from numpy.random import randint
 from scipy.spatial.distance import cdist
 from numba import jit
 
 SIG = 2.6E-3
-EPS = 1E-4
-MASS = 4.65E-26
+EPS = 3E-5
+MASS = 4.65E-27
 FPS = 144
 SPF = 1/FPS
 RADIUS = 3
@@ -22,23 +22,24 @@ EPSILON = 1E-20
 
 @jit(nopython=False)
 def Lennard_Jones_dynamics(ringo, color, RADIUS=1E-6, MASS=1E-6, SPF=1/144, WIDTH=600, HEIGHT=600, SIG=SIG, EPS=EPS):
+    #Coordinate vectors
     x = ringo[:, :2]
+    
+    #Distance matrix R(N,N) and direction matrin R_(N,N,2)
     R = cdist(x, x, metric='euclidean')
-    R_ = zeros((x.shape[0], x.shape[0], x.shape[1]))
+    R_ = asarray([(x - x[i]) / (R[i].reshape(R.shape[0], 1) + EPSILON) for i in range(x.shape[0])])
 
-    for i in range(x.shape[0]):
-        R_[i] = (x - x[i]) / (R[i].reshape(R.shape[0], 1) + EPSILON)
-
+    #Calculating aceleration for timestep and updating velocity and position(Eucledean)
     a = sum(nan_to_num((48/MASS) * (EPS/SIG) * ((SIG/(R + EPSILON)) ** 13 -
             (((SIG/(R + EPSILON)) ** 7) * 0.5))).reshape(R.shape[0], R.shape[0], 1) * R_, axis=1)
     v = ringo[:, 2:] + (a * SPF)
     x = x + (v * SPF)
     
-    # Boundry Condition
+    #Applying boundry condition
     v = v * concatenate((where(x[:, 0] > WIDTH - 1, -1, 1).reshape(x.shape[0], 1), where(
         x[:, 1] > HEIGHT - 1, -1, 1).reshape(x.shape[0], 1)), 1) * where(x < 1, -1, 1)
     
-    # Outputs
+    #Outputs ringo-physics, arty-rendering
     ringo = concatenate((x, v), axis=1)
     arty = concatenate((x.astype('int32'), color), axis=1)
     return arty, ringo
