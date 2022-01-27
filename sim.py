@@ -37,10 +37,10 @@ def Lennard_Jones_dynamics(ringo, color, counter, RADIUS=1E-6, MASS=1E-6, SPF=1/
     x = x + (v * SPF)
     
     #Applying boundry condition
-    v = v * concatenate((where(((x[:,0] > WIDTH) * v[:,0].astype('int32')) > 0, -1, 1).reshape(x.shape[0], 1),
-                        where(((x[:,1] > HEIGHT) * v[:,1].astype('int32')) > 0, -1, 1).reshape(x.shape[0], 1)),1) *\
-            concatenate((where(((x[:,0] < 0) * v[:,0].astype('int32')) < 0, -1, 1).reshape(x.shape[0], 1),
-                        where(((x[:,1] < 0) * v[:,1].astype('int32')) < 0, -1, 1).reshape(x.shape[0], 1)),1)
+    v = v * concatenate((where(((x[:,0] > WIDTH) * v[:,0]) > 0, -1, 1).reshape(x.shape[0], 1),
+                        where(((x[:,1] > HEIGHT) * v[:,1]) > 0, -1, 1).reshape(x.shape[0], 1)),1) *\
+            concatenate((where(((x[:,0] < 0) * v[:,0]) < 0, -1, 1).reshape(x.shape[0], 1),
+                        where(((x[:,1] < 0) * v[:,1]) < 0, -1, 1).reshape(x.shape[0], 1)),1)
     x = nan_to_num(x * concatenate((where(x[:,0] > WIDTH + 10, nan, 1).reshape(x.shape[0], 1), ones((x.shape[0],1))),1), nan=WIDTH)
     x = nan_to_num(x * concatenate((ones((x.shape[0],1)),where(x[:,1] > HEIGHT + 10, nan, 1).reshape(x.shape[0], 1)),1), nan=HEIGHT)
     

@@ -31,8 +31,10 @@ def newtonian_gravitational_dynamics(ringo, color, counter, M, SPF=1/144, WIDTH=
     x = x + (v * SPF)
     
     # Boundry Condition
-    v = v * concatenate((where(x[:, 0] > WIDTH - 1, -1, 1).reshape(x.shape[0], 1), where(
-        x[:, 1] > HEIGHT - 1, -1, 1).reshape(x.shape[0], 1)), 1) * where(x < 1, -1, 1)
+    v = v * concatenate((where(((x[:,0] > WIDTH) * v[:,0]) > 0, -1, 1).reshape(x.shape[0], 1),
+                        where(((x[:,1] > HEIGHT) * v[:,1]) > 0, -1, 1).reshape(x.shape[0], 1)),1) *\
+            concatenate((where(((x[:,0] < 0) * v[:,0]) < 0, -1, 1).reshape(x.shape[0], 1),
+                        where(((x[:,1] < 0) * v[:,1]) < 0, -1, 1).reshape(x.shape[0], 1)),1)
     
     # Outputs
     ringo = concatenate((x, v), axis=1)
@@ -49,15 +51,15 @@ def draw_window(arty, lighting):
 def main():
     clock = pygame.time.Clock()
     run = True
-    N = 5
-    M = ones((N, 1))*1E7
+    N = 10
+    M = randint(8E6, 3E7, (N, 1)).astype('float64')
     M[0] = M[0]*1E10
-    width = randint(100, WIDTH-200, (N, 1)).astype('float64')
+    width = randint(380, 390, (N, 1)).astype('float64')
     width[0] = WIDTH/2
-    height = randint(100, HEIGHT-200, (N, 1)).astype('float64')
+    height = randint(260, 370, (N, 1)).astype('float64')
     height[0] = HEIGHT/2
-    vx = randint(-50, 50, (N, 1)).astype('float64')*5.25
-    vy = randint(-50, 50, (N, 1)).astype('float64')*5.25
+    vx = randint(200, 300, (N, 1)).astype('float64')
+    vy = randint(1, 5, (N, 1)).astype('float64')*0.
     vx[0] = 0.
     vy[0] = 0.
     ringo = concatenate((width, height, vx, vy), axis=1)
