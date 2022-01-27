@@ -1,12 +1,13 @@
 import pygame
-from numpy import concatenate, nan_to_num, where, sum, asarray
+from numpy import concatenate, nan_to_num, where, sum, asarray, sin, ones, nan
 from numpy.random import randint
 from scipy.spatial.distance import cdist
 from numba import jit
 
-SIG = 2.6E-4
-EPS = 1E-3
-MASS = 4.65E-28
+
+SIG = 3.3E-12
+EPS = 9.98E-11
+MASS = 4.65E-26
 FPS = 144
 SPF = 1/FPS
 RADIUS = 3
@@ -36,8 +37,12 @@ def Lennard_Jones_dynamics(ringo, color, counter, RADIUS=1E-6, MASS=1E-6, SPF=1/
     x = x + (v * SPF)
     
     #Applying boundry condition
-    v = v * concatenate((where(x[:, 0] > WIDTH - 1, -1, 1).reshape(x.shape[0], 1), where(
-        x[:, 1] > HEIGHT - 1, -1, 1).reshape(x.shape[0], 1)), 1) * where(x < 1, -1, 1)
+    v = v * concatenate((where(((x[:,0] > WIDTH) * v[:,0].astype('int32')) > 0, -1, 1).reshape(x.shape[0], 1),
+                        where(((x[:,1] > HEIGHT) * v[:,1].astype('int32')) > 0, -1, 1).reshape(x.shape[0], 1)),1) *\
+            concatenate((where(((x[:,0] < 0) * v[:,0].astype('int32')) < 0, -1, 1).reshape(x.shape[0], 1),
+                        where(((x[:,1] < 0) * v[:,1].astype('int32')) < 0, -1, 1).reshape(x.shape[0], 1)),1)
+    x = nan_to_num(x * concatenate((where(x[:,0] > WIDTH + 10, nan, 1).reshape(x.shape[0], 1), ones((x.shape[0],1))),1), nan=WIDTH)
+    x = nan_to_num(x * concatenate((ones((x.shape[0],1)),where(x[:,1] > HEIGHT + 10, nan, 1).reshape(x.shape[0], 1)),1), nan=HEIGHT)
     
     #Outputs ringo-physics, arty-rendering
     ringo = concatenate((x, v), axis=1)
@@ -45,22 +50,21 @@ def Lennard_Jones_dynamics(ringo, color, counter, RADIUS=1E-6, MASS=1E-6, SPF=1/
     return arty, ringo
 
 
-def draw_window(tensor, lighting):
+def draw_window(arty, lighting):
     DISH.fill(lighting)
-    for cell in tensor:
-        pygame.draw.circle(
-            DISH, [cell[2], cell[3], cell[4]], (cell[0], cell[1]), RADIUS)
+    [pygame.draw.circle(DISH, [cell[2], cell[3], cell[4]], (cell[0], cell[1]), RADIUS) for cell in arty]
     pygame.display.update()
 
 
 def main():
     clock = pygame.time.Clock()
     run = True
-    N = 700
-    width = randint(0, WIDTH, (N, 1)).astype('float64')
+    N = 500
+    W_ = 250
+    width = randint(0, WIDTH-W_, (N, 1)).astype('float64')
     height = randint(0, HEIGHT, (N, 1)).astype('float64')
-    vx = randint(-50, 50, (N, 1)).astype('float64')*0.
-    vy = randint(-50, 50, (N, 1)).astype('float64')*0.
+    vx = randint(-1900, 1900, (N, 1)).astype('float64')*0.3
+    vy = randint(-1900, 1900, (N, 1)).astype('float64')*0.3
     ringo = concatenate((width, height, vx, vy), axis=1)
     color = randint(150, 255, (N, 3))
     time_step = 0
@@ -73,7 +77,7 @@ def main():
             if event.type == pygame.QUIT:
                 run = False
         arty, ringo = Lennard_Jones_dynamics(
-            ringo, color, counter, RADIUS=RADIUS*1E-6, MASS=MASS, WIDTH=WIDTH, HEIGHT=HEIGHT, SPF=SPF, EPS=EPS)
+            ringo, color, counter, RADIUS=RADIUS*1E-6, MASS=MASS, WIDTH=WIDTH + 2 * W_ * (sin(sin(time_step*0.01)*0.01 * time_step)-1), HEIGHT=HEIGHT+ W_ * (sin(sin(time_step*0.001)*0.01 * time_step)-1), SPF=SPF, EPS=EPS)
         draw_window(arty, lighting)
         time_step += 1
         # print(ringo[0])

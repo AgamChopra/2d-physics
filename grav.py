@@ -40,11 +40,9 @@ def newtonian_gravitational_dynamics(ringo, color, counter, M, SPF=1/144, WIDTH=
     return arty, ringo
 
 
-def draw_window(tensor, lighting):
+def draw_window(arty, lighting):
     DISH.fill(lighting)
-    for cell in tensor:
-        pygame.draw.circle(
-            DISH, [cell[2], cell[3], cell[4]], (cell[0], cell[1]), RADIUS)
+    [pygame.draw.circle(DISH, [cell[2], cell[3], cell[4]], (cell[0], cell[1]), RADIUS) for cell in arty]
     pygame.display.update()
 
 
